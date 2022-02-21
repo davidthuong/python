@@ -1,34 +1,66 @@
-import tkinter as tk
-from tkinter import ttk
-import urllib.request
-import json
-import time
+#!python3
+# -*- coding: utf-8 -*-
 
-def get_luno():
-	# to change ticker pair, look at here https://api.mybitx.com/api/1/tickers
-	req = urllib.request.urlopen("https://api.mybitx.com/api/1/ticker?pair=XBTMYR")
-	x = json.loads(req.read().decode("utf-8"))
-	req.close()
-	return x
+import requests
+from bs4 import BeautifulSoup
+from colorama import init, Fore, Back, Style
+import sys
+import os
 
-def refresh_price():
-	aLable.configure(text="Ask price: RM " + get_luno()["ask"])
-	bLable.configure(text="Time: " + 
-		str(time.strftime("%Y-%m-%d %H:%M:%S", 
-		time.gmtime(get_luno()["timestamp"]/1000 + 28800))))
+#get the price
+def get_price():
+	#response from the url
+	response = requests.get(url)
 
-win = tk.Tk()
-win.title("Bitcoin price in MYR")
+	#soup object of the html content
+	soup = BeautifulSoup(response.content,'html.parser')
 
-aLable = ttk.Label(win, text="Ask price: RM " + get_luno()["ask"])
-aLable.grid(column=0, row=0, padx=8, pady=4)
+	#for bitcoin
+	if asset == 'btc':
+		price = soup.find('span',{'class':'price'}).text #bitcoin works faster with the price class
 
-bLable = ttk.Label(text="Time: " + 
-		str(time.strftime("%Y-%m-%d %H:%M:%S", 
-		time.gmtime(get_luno()["timestamp"]/1000 + 28800))))
-bLable.grid(column=0, row=1, padx=8, pady=4)
+	#for other altcoins
+	else:
+		price = soup.find('span',{'class':'woobJfK-Xb2EM1W1o8yoE'}).text #other altcoins only work with this class
 
-action = ttk.Button(win, text="Refresh", command=refresh_price)
-action.grid(column=0, row=2, padx=8, pady=4)
+	return float(price.replace(",",""))
 
-win.mainloop()
+#asset choice
+asset = input('Abbreviation of the asset: ')
+url = 'https://cryptowat.ch/assets/' + asset
+
+#catching the NoneType AttributeError error for coins that cant be found
+try:
+	price = get_price()
+
+except AttributeError:
+	print("The asset doesn't exist or it's not supported!")
+	sys.exit()
+
+#visual
+if sys.platform == 'win32':
+	os.system('cls')
+else:
+	os.system('clear')
+
+#since the last price must be something from the start its set to 0
+price = 0
+
+#loop
+while True:
+
+	#getting the price
+	last_price = price
+	price = get_price()
+
+	#coloring the price according to the change
+	if price > last_price:
+		color = Fore.GREEN
+	elif last_price > price:
+		color = Fore.RED
+	else:
+		color = Style.RESET_ALL
+
+	#printing the price
+	print('$ ',end='')
+	print(color + str(price) + Style.RESET_ALL)
